@@ -1,6 +1,7 @@
 # Content files
 *.fs                       text
 *.json                     text
+*.md                       text
 
 # .NET tooling
 *.sln                      text
