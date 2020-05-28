@@ -1,0 +1,15 @@
+# Content files
+*.fs                       text
+*.json                     text
+
+# .NET tooling
+*.sln                      text
+*.fsproj                   text
+paket.dependencies         text
+paket.references           text
+paket.lock                 text
+
+# Git and editor infrastructure
+.gitignore                 text
+.gitattributes             text
+.editorconfig              text

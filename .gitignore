@@ -1,0 +1,4 @@
+.fake/
+.paket/
+paket-files/
+.ionide/
