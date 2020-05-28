@@ -5,6 +5,8 @@ VisualStudioVersion = 15.0.26124.0
 MinimumVisualStudioVersion = 15.0.26124.0
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "zettel-language-server", "zettel-language-server\zettel-language-server.fsproj", "{EF2FD122-BD55-4CF2-B0DB-662448E55AD9}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LSP", "fsharp-language-server\LSP.fsproj", "{4EFFCAB3-0333-474C-9195-6256A150C17E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +32,17 @@ Global
 		{EF2FD122-BD55-4CF2-B0DB-662448E55AD9}.Release|x64.Build.0 = Release|Any CPU
 		{EF2FD122-BD55-4CF2-B0DB-662448E55AD9}.Release|x86.ActiveCfg = Release|Any CPU
 		{EF2FD122-BD55-4CF2-B0DB-662448E55AD9}.Release|x86.Build.0 = Release|Any CPU
+		{4EFFCAB3-0333-474C-9195-6256A150C17E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4EFFCAB3-0333-474C-9195-6256A150C17E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4EFFCAB3-0333-474C-9195-6256A150C17E}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{4EFFCAB3-0333-474C-9195-6256A150C17E}.Debug|x64.Build.0 = Debug|Any CPU
+		{4EFFCAB3-0333-474C-9195-6256A150C17E}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{4EFFCAB3-0333-474C-9195-6256A150C17E}.Debug|x86.Build.0 = Debug|Any CPU
+		{4EFFCAB3-0333-474C-9195-6256A150C17E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4EFFCAB3-0333-474C-9195-6256A150C17E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4EFFCAB3-0333-474C-9195-6256A150C17E}.Release|x64.ActiveCfg = Release|Any CPU
+		{4EFFCAB3-0333-474C-9195-6256A150C17E}.Release|x64.Build.0 = Release|Any CPU
+		{4EFFCAB3-0333-474C-9195-6256A150C17E}.Release|x86.ActiveCfg = Release|Any CPU
+		{4EFFCAB3-0333-474C-9195-6256A150C17E}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
