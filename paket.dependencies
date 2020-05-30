@@ -1,6 +1,25 @@
 source https://api.nuget.org/v3/index.json
-
 storage: none
 framework: netcore3.1
+
 nuget FSharp.Core
 nuget FSharp.Data 3.0.0-beta3
+
+group Core
+source https://api.nuget.org/v3/index.json
+storage: none
+framework: netstandard2.0
+
+nuget FSharp.Core
+nuget YamlDotNet
+
+group Test
+source https://api.nuget.org/v3/index.json
+storage: none
+framework: netcore3.1
+
+nuget FSharp.Core
+nuget unquote
+nuget xunit
+nuget Microsoft.NET.Test.Sdk
+nuget xunit.runner.visualstudio

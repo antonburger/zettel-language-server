@@ -1,0 +1,6 @@
+group Test
+FSharp.Core
+xunit
+Microsoft.NET.Test.Sdk
+xunit.runner.visualstudio
+unquote
