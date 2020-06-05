@@ -3,6 +3,9 @@ namespace AB.Zettel
 type NoteMetadata =
     { Title: string option }
 
+type ParseError =
+    | ParseException of exn
+
 module NoteMetadata =
     open System.IO
     open YamlDotNet.Core

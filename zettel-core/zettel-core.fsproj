@@ -5,7 +5,9 @@
     <RootNamespace>zettel_core</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="NoteMetadata.fs" />
+    <Compile Include="Types.fs" />
+    <Compile Include="NoteParsing.fs" />
+    <Compile Include="TitleIndex.fs" />
     <Compile Include="Library.fs" />
   </ItemGroup>
   <Import Project="..\.paket\Paket.Restore.targets" />
