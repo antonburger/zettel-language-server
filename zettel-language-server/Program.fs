@@ -1,8 +1,8 @@
-﻿// Learn more about F# at http://fsharp.org
-
+﻿
 open System
 open System.IO
 
+open FSharp.Control
 open FSharp.Data
 
 open LSP
@@ -11,59 +11,8 @@ open LSP.Types
 
 open AB.Zettel
 
-type IndexMessage =
-| Initialise of rootPath: string
-| UpdateFile of filePath: string
-| RemoveFile of filePath: string
-| Query of string * AsyncReplyChannel<(DocumentPath * DocumentTitle) list>
-
-type IndexState<'TIndex> =
-| Uninitialised
-| Initialised of 'TIndex
-
 let enumerateMarkdownFiles (rootDir: string) =
     Directory.EnumerateFiles(rootDir, "*.md", SearchOption.AllDirectories)
-
-let titleIndex = MailboxProcessor.Start(fun inbox ->
-    let parseTitle (path: string) =
-        dprintfn "Indexing title for %s" path
-        // TODO: need to handle IO and parsing errors
-        use reader = new StreamReader(path)
-        match NoteMetadata.parse reader with
-        | { Title = Some title } -> Some <| (DocumentPath path, DocumentTitle title)
-        | _ -> None
-    let rec loop state = async {
-        let! msg = inbox.Receive()
-        match state, msg with
-        | _, Initialise rootPath ->
-            dprintfn "Building title index for %s" rootPath
-            let files = enumerateMarkdownFiles rootPath
-            let index =
-                files
-                |> Seq.choose parseTitle
-                |> Seq.fold (fun index (path, title) -> TitleIndex.add path title index) TitleIndex.empty
-            dprintfn "Index built"
-            return! loop (Initialised index)
-        | Uninitialised, _ ->
-            return! loop Uninitialised
-        | Initialised index, UpdateFile path ->
-            let index =
-                match parseTitle path with
-                | Some (path, title) -> TitleIndex.add path title index
-                | _ -> index
-            return! loop (Initialised index)
-        | Initialised index, RemoveFile path ->
-            let index = index |> TitleIndex.remove (DocumentPath path)
-            return! loop (Initialised index)
-        | Initialised index, Query (query, replyChannel) ->
-            dprintfn "Got a title query for %s" query
-            let terms = query.Split([| ' ' |], StringSplitOptions.RemoveEmptyEntries)
-            let results = index |> TitleIndex.query terms |> Seq.truncate 10 |> Seq.map(fun (_, p, t) -> (p, t)) |> Seq.toList
-            replyChannel.Reply results
-            return! loop (Initialised index)
-    }
-    loop Uninitialised
-)
 
 let makeRelative rootDir =
     let ensureTrailingBackslash (path: string) =
@@ -75,23 +24,33 @@ let makeRelative rootDir =
 
 let asyncNoOp = async { () }
 
+let getTitles rootDir = asyncSeq {
+    let parseTitle (path: string) =
+        dprintfn "Indexing title for %s" path
+        // TODO: need to handle IO and parsing errors
+        use reader = new StreamReader(path)
+        match NoteMetadata.parse reader with
+        | { Title = Some title } -> Some <| (DocumentPath path, DocumentTitle title)
+        | _ -> None
+    for file in enumerateMarkdownFiles rootDir do
+        match parseTitle file with
+        | Some pair -> yield pair
+        | None -> ()
+}
+
 type ZettelLanguageServer(client: ILanguageClient) =
     let docs = DocumentStore()
+    let titleIndex = new TitleIndex()
     let mutable rootDir: string option = None
 
     interface ILanguageServer with
         member this.Initialize(p) =
-            let fixPath (uriLocalPath: string) =
-                if uriLocalPath.StartsWith "/"
-                then uriLocalPath.Substring 1
-                else uriLocalPath
             async {
                 match p.rootUri with
                 | Some rootUri ->
                     dprintfn "Initializing for %A" rootUri
-                    rootDir <- rootUri.LocalPath |> fixPath |> Some
-                    rootDir
-                    |> Option.iter (Initialise >> titleIndex.Post)
+                    // TODO: Do this initialisation on a separate thread
+                    do! rootUri.LocalPath |> getTitles |> titleIndex.Initialise
                 | _ -> dprintfn "No root URI in Initialize message: %A" p
                 return {
                     capabilities =
@@ -137,13 +96,13 @@ type ZettelLanguageServer(client: ILanguageClient) =
 
         member this.Completion(arg1: TextDocumentPositionParams): Async<CompletionList option> = async {
             let query = "tools"
-            try
-                let documents = titleIndex.PostAndReply((fun replyChannel -> Query (query, replyChannel)), 5000)
+            match! titleIndex.Query([| query |]) with
+            | Some documents ->
                 return Some {
                     isIncomplete = false
                     items =
                         documents
-                        |> List.map (fun (DocumentPath path, DocumentTitle title) -> {
+                        |> Seq.map (fun (_, DocumentPath path, DocumentTitle title) -> {
                             label = title
                             kind = Some CompletionItemKind.File
                             detail = sprintf "[%s](%s)" title path |> Some
@@ -158,9 +117,9 @@ type ZettelLanguageServer(client: ILanguageClient) =
                             command = None
                             data = JsonValue.Null
                         })
+                        |> Seq.toList
                 }
-            with
-            | :? OperationCanceledException -> return None
+            | None -> return None
         }
 
         member this.DocumentFormatting(arg1: DocumentFormattingParams): Async<TextEdit list> =

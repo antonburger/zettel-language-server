@@ -5,16 +5,19 @@ open Xunit
 open Swensen.Unquote
 
 type ``Given an empty title index``() =
-    let index = TitleIndex.empty
+    let index = new TitleIndex()
 
     [<Fact>]
     member x.``Removing any path succeeds``() =
-        TitleIndex.remove (DocumentPath "foo") index |> ignore
+        Async.RunSynchronously <| index.Remove(DocumentPath "foo")
 
 type ``Given an index with just this entry``() =
-    let index =
-        TitleIndex.empty
-        |> TitleIndex.add (DocumentPath "foo") (DocumentTitle "The complete collected works of Shakespeare")
+    let index = new TitleIndex()
+
+    do
+        Async.RunSynchronously <| async {
+            do! index.Update(DocumentPath "foo", DocumentTitle "The complete collected works of Shakespeare") |> Async.Ignore
+        }
 
     [<Fact>]
     member x.``Removing the single path gives an empty index``() =
@@ -25,14 +28,17 @@ type ``Given an index with just this entry``() =
     [<Fact>]
     member x.``The following query matches the entry``() =
         let terms = [| "shakespeare" |]
-        let actual = index |> TitleIndex.query terms |> Seq.length
-        test <@ actual = 1 @>
+        let documents = Async.RunSynchronously <| index.Query terms
+        test <@ Option.isSome documents && (Option.get documents |> Seq.length) = 1 @>
 
 type ``Given an index with these two entries``() =
-    let index =
-        TitleIndex.empty
-        |> TitleIndex.add (DocumentPath "foo") (DocumentTitle "A book about Shakespeare")
-        |> TitleIndex.add (DocumentPath "bar") (DocumentTitle "A paper about Shakespeare")
+    let index = new TitleIndex()
+
+    do
+        Async.RunSynchronously <| async {
+            do! index.Update(DocumentPath "foo", DocumentTitle "A book about Shakespeare") |> Async.Ignore
+            do! index.Update(DocumentPath "bar", DocumentTitle "A paper about Shakespeare") |> Async.Ignore
+        }
 
     [<Fact>]
     let ``A query asking for books gives the book entry more weight``() =

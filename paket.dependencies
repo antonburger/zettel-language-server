@@ -2,6 +2,7 @@ source https://api.nuget.org/v3/index.json
 storage: none
 framework: netcore3.1
 
+nuget FSharp.Control.AsyncSeq
 nuget FSharp.Core
 nuget FSharp.Data 3.0.0-beta3
 
@@ -10,6 +11,7 @@ source https://api.nuget.org/v3/index.json
 storage: none
 framework: netstandard2.0
 
+nuget FSharp.Control.AsyncSeq
 nuget FSharp.Core
 nuget YamlDotNet
 

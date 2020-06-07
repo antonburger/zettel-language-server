@@ -1,3 +1,4 @@
 group Core
 FSharp.Core
 YamlDotNet
+FSharp.Control.AsyncSeq
