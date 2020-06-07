@@ -76,6 +76,7 @@ let makeRelative rootDir =
 let asyncNoOp = async { () }
 
 type ZettelLanguageServer(client: ILanguageClient) =
+    let docs = DocumentStore()
     let mutable rootDir: string option = None
 
     interface ILanguageServer with
@@ -95,18 +96,34 @@ type ZettelLanguageServer(client: ILanguageClient) =
                 return {
                     capabilities =
                         { defaultServerCapabilities with
-                              completionProvider = Some {
-                                  resolveProvider = false
-                                  triggerCharacters = [] }}
+                            completionProvider = Some { resolveProvider = false; triggerCharacters = [] }
+                            textDocumentSync =
+                                { defaultTextDocumentSyncOptions with
+                                    openClose = true
+                                    change = TextDocumentSyncKind.Incremental
+                                }
+                        }
                 }
             }
 
+        member this.DidOpenTextDocument(p) = async {
+            docs.Open(p)
+        }
+
+        member this.DidCloseTextDocument(p) = async {
+            docs.Close(p)
+        }
+
+        member this.DidChangeTextDocument(p) = async {
+            docs.Change(p)
+        }
+
+        member this.DidChangeWatchedFiles(p) = async {
+            ()
+        }
+
         member this.DidChangeConfiguration(_) = asyncNoOp
-        member this.DidChangeTextDocument(_) = asyncNoOp
-        member this.DidChangeWatchedFiles(_) = asyncNoOp
         member this.DidChangeWorkspaceFolders(_) = asyncNoOp
-        member this.DidCloseTextDocument(_) = asyncNoOp
-        member this.DidOpenTextDocument(_) = asyncNoOp
         member this.DidSaveTextDocument(_) = asyncNoOp
         member this.WillSaveTextDocument(_) = asyncNoOp
         member this.Initialized() = asyncNoOp
@@ -117,6 +134,7 @@ type ZettelLanguageServer(client: ILanguageClient) =
             failwith "Not Implemented"
         member this.CodeLens(arg1: CodeLensParams): Async<CodeLens list> =
             failwith "Not Implemented"
+
         member this.Completion(arg1: TextDocumentPositionParams): Async<CompletionList option> = async {
             let query = "tools"
             try
@@ -143,8 +161,8 @@ type ZettelLanguageServer(client: ILanguageClient) =
                 }
             with
             | :? OperationCanceledException -> return None
-
         }
+
         member this.DocumentFormatting(arg1: DocumentFormattingParams): Async<TextEdit list> =
             failwith "Not Implemented"
         member this.DocumentHighlight(arg1: TextDocumentPositionParams): Async<DocumentHighlight list> =
