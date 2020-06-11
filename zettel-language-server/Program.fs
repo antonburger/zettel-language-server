@@ -1,5 +1,4 @@
-﻿
-open System
+﻿open System
 open System.IO
 
 open FSharp.Control
@@ -13,14 +12,6 @@ open AB.Zettel
 
 let enumerateMarkdownFiles (rootDir: string) =
     Directory.EnumerateFiles(rootDir, "*.md", SearchOption.AllDirectories)
-
-let makeRelative rootDir =
-    let ensureTrailingBackslash (path: string) =
-        if path.EndsWith("/") || path.EndsWith("\\") then path else path + "/"
-    let rootUri = rootDir |> ensureTrailingBackslash |> Uri
-    fun targetPath ->
-        let targetUri = targetPath |> Uri
-        rootUri.MakeRelativeUri(targetUri).OriginalString
 
 let asyncNoOp = async { () }
 
@@ -41,7 +32,6 @@ let getTitles rootDir = asyncSeq {
 type ZettelLanguageServer(client: ILanguageClient) =
     let docs = DocumentStore()
     let titleIndex = new TitleIndex()
-    let mutable rootDir: string option = None
 
     interface ILanguageServer with
         member this.Initialize(p) =
@@ -55,7 +45,7 @@ type ZettelLanguageServer(client: ILanguageClient) =
                 return {
                     capabilities =
                         { defaultServerCapabilities with
-                            completionProvider = Some { resolveProvider = false; triggerCharacters = [] }
+                            completionProvider = Some { resolveProvider = false; triggerCharacters = [ '[' ] }
                             textDocumentSync =
                                 { defaultTextDocumentSyncOptions with
                                     openClose = true
@@ -94,33 +84,58 @@ type ZettelLanguageServer(client: ILanguageClient) =
         member this.CodeLens(arg1: CodeLensParams): Async<CodeLens list> =
             failwith "Not Implemented"
 
-        member this.Completion(arg1: TextDocumentPositionParams): Async<CompletionList option> = async {
-            let query = "tools"
-            match! titleIndex.Query([| query |]) with
-            | Some documents ->
-                return Some {
-                    isIncomplete = false
-                    items =
-                        documents
-                        |> Seq.map (fun (_, DocumentPath path, DocumentTitle title) -> {
-                            label = title
-                            kind = Some CompletionItemKind.File
-                            detail = sprintf "[%s](%s)" title path |> Some
-                            documentation = None
-                            sortText = None
-                            filterText = None
-                            insertText = sprintf "[%s](%s)" title path |> Some
-                            insertTextFormat = Some InsertTextFormat.PlainText
-                            textEdit = None
-                            additionalTextEdits = []
-                            commitCharacters = []
-                            command = None
-                            data = JsonValue.Null
-                        })
-                        |> Seq.toList
-                }
+        member this.Completion(p: TextDocumentPositionParams): Async<CompletionList option> = async {
+            let getLine i = Completion.getLines >> (fun ls -> ls.[i])
+            let pos c = { line = p.position.line; character = c }
+            let doc =
+                p.textDocument.uri.LocalPath
+                |> FileInfo
+                |> docs.GetText
+            let completionRange =
+                doc
+                |> Option.map (getLine p.position.line)
+                |> Option.bind (fun line -> Completion.getCompletionRange line p.position.character)
+            match completionRange with
             | None -> return None
-        }
+            | Some { replacementStartCol = s; replacementLength = l; completionQuery = query } as r ->
+                dprintfn "Replacement range is %A" r
+                let query = query.Split([| ' ' |], StringSplitOptions.RemoveEmptyEntries)
+                dprintfn "Query is %A" query
+                match! titleIndex.Query(query) with
+                | Some documents ->
+                    let escape v (inStr: string) = inStr.Replace(v, sprintf @"\%s" v)
+                    let escapeAll vs inStr = vs |> Seq.fold (fun s v -> escape v s) inStr
+                    let escapeSnippet = escapeAll [ @"\"; "{"; "}"; "$" ]
+                    dprintfn "Got %i results" (Seq.length documents)
+                    return Some {
+                        isIncomplete = false
+                        items =
+                            documents
+                            |> Seq.map (fun (_, DocumentPath path, DocumentTitle title) ->
+                                let path = p.textDocument.uri.MakeRelativeUri(Uri(path)).OriginalString
+                                let snippet = sprintf "[${1:%s}](%s)" (escapeSnippet title) (escapeSnippet path)
+                                {
+                                    label = title
+                                    kind = Some CompletionItemKind.File
+                                    detail = None
+                                    documentation = None
+                                    sortText = None
+                                    filterText = None
+                                    insertText = None
+                                    insertTextFormat = Some InsertTextFormat.Snippet
+                                    textEdit = Some {
+                                        range = { start = pos s; ``end`` = pos <| s + l }
+                                        newText = snippet
+                                    }
+                                    additionalTextEdits = []
+                                    commitCharacters = []
+                                    command = None
+                                    data = JsonValue.Null
+                                })
+                            |> Seq.toList
+                    }
+                | None -> return None
+            }
 
         member this.DocumentFormatting(arg1: DocumentFormattingParams): Async<TextEdit list> =
             failwith "Not Implemented"
